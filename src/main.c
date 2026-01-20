@@ -6,6 +6,7 @@
 #include "FCFS.h"
 #include "RR.h"
 #include "SJF.h"
+#include "SRTF.h"
 #include "Prority.h" 
 #include "display.h"
 
@@ -38,8 +39,10 @@ void append_process(struct process** head, int pid, int at, int bt, int prio) {
 
 int main() {
     struct process* head = NULL;
+    // chart_head is the "garbage" dummy node that your chart_display skips
     struct gantt_chart* chart_head = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
     chart_head->next = NULL;
+    chart_head->process_id = -1; // Marker for the dummy node
 
     int n, choice, quantum = 0;
     int at, bt, prio;
@@ -49,7 +52,7 @@ int main() {
     printf("==========================================\n");
 
     printf("Enter the number of processes: ");
-    scanf("%d", &n);
+    if (scanf("%d", &n) != 1 || n <= 0) return 1;
 
     for (int i = 0; i < n; i++) {
         printf("\nProcess P%d:\n", i + 1);
@@ -63,14 +66,15 @@ int main() {
         append_process(&head, i + 1, at, bt, prio);
     }
 
-    // Initial Sort by Arrival Time
+    // Initial Sort by Arrival Time (Key 2)
     merge_sort(2, &head);
 
     printf("\nSelect Algorithm:\n");
     printf("1. FCFS (First Come First Serve)\n");
-    printf("2. SJF (Shortest Job First)\n");
-    printf("3. Priority Scheduling\n");
-    printf("4. Round Robin\n");
+    printf("2. SJF (Shortest Job First - Non Preemptive)\n");
+    printf("3. SRTF (Shortest Remaining Time First - Preemptive)\n"); // Added SRTF
+    printf("4. Priority Scheduling\n");
+    printf("5. Round Robin\n");
     printf("Enter choice: ");
     scanf("%d", &choice);
 
@@ -79,12 +83,15 @@ int main() {
             FCFS(head, chart_head);
             break;
         case 2:
-            SJS(head, chart_head); 
+            SJF(head, chart_head); // Corrected from SJS
             break;
         case 3:
-            Priority(head, chart_head);
+            SRTF(head, chart_head); // Added SRTF case
             break;
         case 4:
+            Priority(head, chart_head);
+            break;
+        case 5:
             printf("Enter Time Quantum: ");
             scanf("%d", &quantum);
             RR(head, quantum, chart_head);
@@ -109,5 +116,7 @@ int main() {
     printf("\n");
     display(head, total_wt / n, total_tat / n); 
 
+    // Free allocated memory (Clean up)
+    // You should ideally free the linked lists here
     return 0;
 }

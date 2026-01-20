@@ -4,7 +4,7 @@
 #include "merge_Sort.h"
 #include "SJF.h"
 
-void SJS(struct process* head, struct gantt_chart* chart) {
+void SJF(struct process* head, struct gantt_chart* chart) {
     struct gantt_chart* tail = chart;
     
     int current_time = 0;
