@@ -75,6 +75,7 @@ int main() {
     printf("3. SRTF (Shortest Remaining Time First - Preemptive)\n"); // Added SRTF
     printf("4. Priority Scheduling\n");
     printf("5. Round Robin\n");
+    printf("6. Priority Preemptive\n");
     printf("Enter choice: ");
     scanf("%d", &choice);
 
@@ -95,6 +96,9 @@ int main() {
             printf("Enter Time Quantum: ");
             scanf("%d", &quantum);
             RR(head, quantum, chart_head);
+            break;
+        case 6:
+            Priority_preemptive(head, chart_head);
             break;
         default:
             printf("Invalid Choice!\n");

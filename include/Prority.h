@@ -6,5 +6,6 @@
 
 
 void Priority(struct process* head, struct gantt_chart* chart);
+void Priority_preemptive(struct process* head, struct gantt_chart* chart);
 
 #endif

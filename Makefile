@@ -1,15 +1,24 @@
 CC = gcc
 CFLAGS = -std=c11 -Wall -Wextra -Iinclude
 SRCS = $(wildcard src/*.c)
-BIN = bin/scheduler
+
+ifeq ($(OS),Windows_NT)
+	BIN = bin/scheduler.exe
+	MKDIR = if not exist bin mkdir bin
+	RM = del /Q
+else
+	BIN = bin/scheduler
+	MKDIR = mkdir -p bin
+	RM = rm -f
+endif
 
 all: $(BIN)
 
 $(BIN): $(SRCS)
-	@mkdir -p bin || if not exist bin mkdir bin
+	$(MKDIR)
 	$(CC) $(CFLAGS) -o $(BIN) $(SRCS)
 
 clean:
-	rm -f $(BIN) build/*.o
+	$(RM) $(BIN)
 
 .PHONY: all clean

@@ -1,150 +1,95 @@
+/*
+ * Shortest Remaining Time First (preemptive) implementation.
+ * This implementation simulates time in discrete units and picks the
+ * arrived process with the smallest remaining time at each unit.
+ *
+ * It builds gantt chart nodes by coalescing consecutive time units
+ * executed by the same process.
+ */
 #include <stdlib.h>
+#include <string.h>
 #include "gantt_chart.h"
 #include "Process.h"
-#include "merge_Sort.h"
 #include "SRTF.h"
 
 void SRTF(struct process* head, struct gantt_chart* chart) {
-    struct gantt_chart* tail = chart;
-    int OBT[100]; // Assuming a maximum of 100 processes- Original Burst Time
-    for(int i = 0; i < 100; i++)
-        OBT[i] = -1;
+    if (!head) return;
+
+    /* Count processes */
+    int n = 0;
+    for (struct process* t = head; t; t = t->next) n++;
+
+    /* Arrays for quick indexed access during simulation */
+    struct process** procs = malloc(sizeof(struct process*) * n);
+    int* rem = malloc(sizeof(int) * n); /* remaining times */
+    int* OBT = malloc(sizeof(int) * n); /* original burst times */
+
+    int idx = 0;
+    for (struct process* t = head; t; t = t->next) {
+        procs[idx] = t;
+        rem[idx] = t->burst_time;
+        OBT[idx] = t->burst_time;
+        idx++;
+    }
+
+    int completed = 0;
     int current_time = 0;
-    struct process* p = head;
+    int last_pid = -1; /* pid of last executing process */
+    struct gantt_chart* tail = chart;
+    struct gantt_chart* node = NULL;
 
-    //creating a dummy pointer to traverse the list to complete processes.
-    struct process* dummy=(struct process*)malloc(sizeof(struct process));
-    dummy->next=head;
-    head=dummy;
-
-    //while executing through the incoming processes.
-    while(p) {
-        struct gantt_chart* new_node;
-
-        if(current_time >= dummy->next->arrival_time) {
-            if(OBT[dummy->next->pid-1]==-1) {
-                OBT[dummy->next->pid-1]=dummy->next->burst_time;
-                new_node = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
-                new_node->next = NULL;
-
-                new_node->process_id = dummy->next->pid;
-                new_node->start_time = current_time;
-                current_time += 1;
-                dummy->next->burst_time -= 1;
-                new_node->end_time = current_time;
-
-                tail->next = new_node;
-                tail = new_node;
-            }
-            else {
-                if(dummy->next->pid !=tail->process_id) {
-                    new_node = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
-                    new_node->next = NULL;
-
-                    new_node->process_id = dummy->next->pid;
-                    new_node->start_time = current_time;
-                    current_time += 1;
-                    dummy->next->burst_time -= 1;
-                    new_node->end_time = current_time;
-                    tail->next = new_node;
-                    tail = new_node;
-                }
-                else {
-                  tail->end_time += 1;
-                  current_time += 1;
-                  dummy->next->burst_time -= 1;
-                  new_node = NULL;
+    while (completed < n) {
+        /* Choose the arrived process with minimum remaining time */
+        int chosen = -1;
+        for (int i = 0; i < n; ++i) {
+            if (procs[i]->arrival_time <= current_time && rem[i] > 0) {
+                if (chosen == -1 || rem[i] < rem[chosen] || (rem[i] == rem[chosen] && procs[i]->pid < procs[chosen]->pid)) {
+                    chosen = i;
                 }
             }
-            
         }
-        else {
-            current_time = p->arrival_time;
-            OBT[p->pid-1]=p->burst_time;
-                new_node = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
-                new_node->next = NULL;
 
-                new_node->process_id = p->pid;
-                new_node->start_time = current_time;
-                current_time += 1;
-                p->burst_time -= 1;
-                new_node->end_time = current_time;
-        }
-        
-        if(dummy->next->burst_time==0) {
-            dummy->next->Completion_time=current_time;
-            dummy=dummy->next;
-        }   
-        
-        
- 
-        if(p->next && current_time >= p->next->arrival_time) {
-            
-            struct process* arrival_boundary = p;
-            while(arrival_boundary->next && arrival_boundary->next->arrival_time <= current_time) {
-                arrival_boundary = arrival_boundary->next;
+        if (chosen == -1) {
+            /* No arrived process: advance time to the next arrival */
+            int next_arr = -1;
+            for (int i = 0; i < n; ++i) {
+                if (rem[i] > 0) {
+                    if (next_arr == -1 || procs[i]->arrival_time < next_arr) next_arr = procs[i]->arrival_time;
+                }
             }
+            if (next_arr > current_time) current_time = next_arr;
+            continue;
+        }
 
-            struct process* not_yet_arrived = arrival_boundary->next;
-            arrival_boundary->next = NULL;
-
-            struct process* arrived_head = dummy->next;
-            merge_sort(3, &arrived_head);
-            dummy->next = arrived_head;
-
-            struct process* temp = arrived_head;
-            while(temp->next) temp = temp->next;
-            temp->next = not_yet_arrived;
-            p = temp; 
+        /* Append or extend a gantt chart node for this time unit */
+        if (last_pid != procs[chosen]->pid) {
+            node = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
+            node->next = NULL;
+            node->process_id = procs[chosen]->pid;
+            node->start_time = current_time;
+            node->end_time = current_time + 1;
+            tail->next = node;
+            tail = node;
         } else {
-            if (p->next == NULL) {
-                p  = NULL;
-            }
+            /* extend last node's end_time by 1 */
+            tail->end_time += 1;
+        }
+
+        /* Execute one time unit */
+        rem[chosen] -= 1;
+        current_time += 1;
+        last_pid = procs[chosen]->pid;
+
+        if (rem[chosen] == 0) {
+            /* Process finished: set completion metrics */
+            procs[chosen]->Completion_time = current_time;
+            procs[chosen]->Turn_Around_time = procs[chosen]->Completion_time - procs[chosen]->arrival_time;
+            procs[chosen]->Waiting_time = procs[chosen]->Turn_Around_time - OBT[chosen];
+            completed++;
         }
     }
 
-    dummy=dummy->next;
-    p=dummy;
-    //after all processes have arrived, execute remaining processes in order of burst time.
-    while(p) {
-        struct gantt_chart* new_node = (struct gantt_chart*)malloc(sizeof(struct gantt_chart));
-        new_node->next = NULL;
-
-        if(current_time >= p->arrival_time) {
-            new_node->process_id = p->pid;
-            new_node->start_time = current_time;
-            current_time += p->burst_time;
-            new_node->end_time = current_time;
-        }
-        else {  
-            // Idle time logic
-            new_node->process_id = p->pid;
-            current_time = p->arrival_time;
-            new_node->start_time = current_time;
-            current_time += p->burst_time;
-            new_node->end_time = current_time;
-        }
-
-        tail->next = new_node;
-        tail = new_node;
-
-        p->Completion_time = current_time;
-        p = p->next;
-    }
-
-
-    //Restoring original burst times and calculating TAT and WT
-    struct process* temp=head->next;
-    while(temp){
-        if (temp->pid > 0 && temp->pid <= 100 && OBT[temp->pid - 1] != -1) {
-            int original_bt = OBT[temp->pid - 1];
-            
-            temp->Turn_Around_time = temp->Completion_time - temp->arrival_time;
-            temp->Waiting_time = temp->Turn_Around_time - original_bt;
-            
-            temp->burst_time = original_bt;
-        }
-        temp = temp->next;
-    } 
-    
+    free(procs);
+    free(rem);
+    free(OBT);
 }
